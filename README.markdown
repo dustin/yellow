@@ -12,3 +12,6 @@ func ExampleDeadlineLog() {
 	// otherwise
 }
 ```
+
+[![Coverage Status](https://coveralls.io/repos/dustin/yellow/badge.png?branch=master)](https://coveralls.io/r/dustin/yellow?branch=master)
+
