@@ -132,6 +132,14 @@ func BenchmarkNSDurationRef(b *testing.B) {
 	}
 }
 
+func BenchmarkNSDurationWarningNotFired(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		n := mkChanTimedOutHandler()
+		y := Deadline(1, n)
+		y.Done()
+	}
+}
+
 func BenchmarkNSDurationWarningFired(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n := mkChanTimedOutHandler()
