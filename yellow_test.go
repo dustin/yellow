@@ -168,3 +168,25 @@ func ExampleDeadlineLog() {
 	// do something that should take less than a second, log
 	// otherwise
 }
+
+func ExampleHandleFunc() {
+	// Imagine a histogram tracking time spent in a particular
+	// function.
+	var histogram interface {
+		Add(time.Duration)
+	}
+
+	// You can have a way to compute the time difference since a
+	// particular point in time and then add it to your histogram:
+	updateAgeHistogram := func(started time.Time) {
+		d := time.Since(started)
+		histogram.Add(d)
+	}
+
+	// And then you can use HandleFunc to invoke that handler:
+	defer Deadline(time.Second, HandleFunc(updateAgeHistogram)).Done()
+
+	// Do something that should take less than a second.  If it
+	// takes more than a second, update the histogram with how
+	// long it took.
+}
