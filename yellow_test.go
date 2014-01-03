@@ -99,6 +99,17 @@ func TestNoTimeoutNoWarning(t *testing.T) {
 	Deadline(time.Minute, &failHandler{t}).Done()
 }
 
+func TestHandlerFunc(t *testing.T) {
+	worked := false
+	func() {
+		defer Deadline(1, HandleFunc(func(time.Time) { worked = true })).Done()
+		time.Sleep(time.Millisecond)
+	}()
+	if worked == false {
+		t.Errorf("Failed to signal from HandleFunc")
+	}
+}
+
 func BenchmarkNoDuration(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Deadline(0, nil).Done()

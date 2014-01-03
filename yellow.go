@@ -30,6 +30,18 @@ type Handler interface {
 	Completed(started time.Time)
 }
 
+type funcHandler func(time.Time)
+
+// Completed satisfies Handler
+func (f funcHandler) Completed(t time.Time) {
+	f(t)
+}
+
+// HandleFunc wraps a simple function to satisfy Handler
+func HandleFunc(f func(t time.Time)) Handler {
+	return funcHandler(f)
+}
+
 // TimedOutHandler receives notifications as Deadlines are exceeded,
 // but while the task is still running.
 type TimedOutHandler interface {
