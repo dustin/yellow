@@ -9,6 +9,12 @@
 //       doThing(thing, place)
 //   }
 //
+// If your handler also implements TimedOutHandler,
+// TimedOut(time.Time) will be delivered to your Handler while the
+// function is still running.
+//
+// This is useful, for example, to deliver warnings about functions
+// that are running so slowly as to be completely unresponsive.
 package yellow
 
 import (
@@ -16,19 +22,27 @@ import (
 	"time"
 )
 
-// Handler handles deadline events.
+// Handler receives notifications when tasks complete after exceeding
+// their deadlines.
 type Handler interface {
-	// TimedOut is called when your Deadline has exceeded.
-	TimedOut(started time.Time)
 	// Completed is called when a task that has exceeded its
 	// deadline finally completes.
 	Completed(started time.Time)
+}
+
+// TimedOutHandler receives notifications as Deadlines are exceeded,
+// but while the task is still running.
+type TimedOutHandler interface {
+	Handler
+	// TimedOut is called when your Deadline has exceeded.
+	TimedOut(started time.Time)
 }
 
 // Stopwatch manages a timer that runs while waiting for a deadline.
 type Stopwatch struct {
 	handler Handler
 	started time.Time
+	d       time.Duration
 	t       *time.Timer
 }
 
@@ -37,8 +51,14 @@ func (d *Stopwatch) Done() {
 	if d == nil {
 		return
 	}
-	if !d.t.Stop() {
-		d.handler.Completed(d.started)
+	if d.t == nil {
+		if time.Since(d.started) > d.d {
+			d.handler.Completed(d.started)
+		}
+	} else {
+		if !d.t.Stop() {
+			d.handler.Completed(d.started)
+		}
 	}
 }
 
@@ -49,10 +69,11 @@ func Deadline(d time.Duration, handler Handler) *Stopwatch {
 		return nil
 	}
 	started := time.Now()
-	return &Stopwatch{
-		handler, started,
-		time.AfterFunc(d, func() { handler.TimedOut(started) }),
+	rv := &Stopwatch{handler, started, d, nil}
+	if h, ok := handler.(TimedOutHandler); ok {
+		rv.t = time.AfterFunc(d, func() { h.TimedOut(started) })
 	}
+	return rv
 }
 
 // DeadlineLog is a convenience invocation of Deadline that just logs events.

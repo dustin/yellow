@@ -8,20 +8,20 @@ import (
 	"time"
 )
 
-type chanHandler struct{ ch, ch2 chan bool }
+type chanTimedOutHandler struct{ ch, ch2 chan bool }
 
-func (n *chanHandler) TimedOut(t time.Time)  { close(n.ch) }
-func (n *chanHandler) Completed(t time.Time) { close(n.ch2) }
-func (n *chanHandler) Wait()                 { <-n.ch }
-func (n *chanHandler) WaitComplete()         { <-n.ch2 }
+func (n *chanTimedOutHandler) TimedOut(t time.Time)  { close(n.ch) }
+func (n *chanTimedOutHandler) Completed(t time.Time) { close(n.ch2) }
+func (n *chanTimedOutHandler) Wait()                 { <-n.ch }
+func (n *chanTimedOutHandler) WaitComplete()         { <-n.ch2 }
 
 type failHandler struct{ t *testing.T }
 
 func (n *failHandler) TimedOut(t time.Time)  { n.t.Fatalf("Unexpected timeout") }
 func (n *failHandler) Completed(t time.Time) { n.t.Fatalf("Unexpected completed") }
 
-func mkChanHandler() *chanHandler {
-	return &chanHandler{make(chan bool), make(chan bool)}
+func mkChanTimedOutHandler() *chanTimedOutHandler {
+	return &chanTimedOutHandler{make(chan bool), make(chan bool)}
 }
 
 func TestNoDuration(t *testing.T) {
@@ -40,26 +40,35 @@ func TestNoDurationLog(t *testing.T) {
 	s.Done() // noop
 }
 
-func assertTimedOut(t *testing.T, n *chanHandler) {
+func assertTimedOut(t *testing.T, n interface{}) {
+	var ch chan bool
+	switch h := n.(type) {
+	case *chanTimedOutHandler:
+		ch = h.ch
+	case *chanHandler:
+		ch = h.ch
+	default:
+		t.Fatalf("Unhandled type: %T", n)
+	}
 	select {
-	case <-n.ch:
+	case <-ch:
 	default:
 		t.Fatalf("Expected timeout, but didn't get one")
 	}
 }
 
-func TestTimeout(t *testing.T) {
-	ch := mkChanHandler()
+func TestTimeoutWarning(t *testing.T) {
+	ch := mkChanTimedOutHandler()
 	defer assertTimedOut(t, ch)
 	defer Deadline(1, ch).Done()
 	<-ch.ch
 }
 
-func TestNoTimeout(t *testing.T) {
+func TestNoTimeoutWarning(t *testing.T) {
 	defer Deadline(time.Minute, &failHandler{t}).Done()
 }
 
-func TestLogger(t *testing.T) {
+func TestLoggerWarning(t *testing.T) {
 	buf := &bytes.Buffer{}
 	log.SetOutput(buf)
 	defer log.SetOutput(os.Stderr)
@@ -68,6 +77,26 @@ func TestLogger(t *testing.T) {
 	lh.Completed(time.Now())
 	// Should probably actually inspect this stuff.
 	t.Logf("%s", buf.Bytes())
+}
+
+type chanHandler struct{ ch chan bool }
+
+func (n *chanHandler) Completed(t time.Time) { close(n.ch) }
+func (n *chanHandler) Wait()                 { <-n.ch }
+
+func mkChanHandler() *chanHandler {
+	return &chanHandler{make(chan bool)}
+}
+
+func TestTimeoutNoWarning(t *testing.T) {
+	ch := mkChanHandler()
+	defer assertTimedOut(t, ch)
+	defer Deadline(1, ch).Done()
+	time.Sleep(time.Millisecond)
+}
+
+func TestNoTimeoutNoWarning(t *testing.T) {
+	Deadline(time.Minute, &failHandler{t}).Done()
 }
 
 func BenchmarkNoDuration(b *testing.B) {
@@ -85,18 +114,26 @@ func BenchmarkMSDuration(b *testing.B) {
 func BenchmarkNSDurationRef(b *testing.B) {
 	refTime := time.Now()
 	for i := 0; i < b.N; i++ {
-		n := mkChanHandler()
+		n := mkChanTimedOutHandler()
 		n.TimedOut(refTime)
 		n.Wait()
 		n.Completed(refTime)
 	}
 }
 
-func BenchmarkNSDurationFired(b *testing.B) {
+func BenchmarkNSDurationWarningFired(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		n := mkChanTimedOutHandler()
+		y := Deadline(1, n)
+		n.Wait()
+		y.Done()
+	}
+}
+
+func BenchmarkNSNoWarningDurationFired(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n := mkChanHandler()
 		y := Deadline(1, n)
-		n.Wait()
 		y.Done()
 	}
 }
