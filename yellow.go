@@ -87,10 +87,9 @@ func Deadline(d time.Duration, handler Handler) *Stopwatch {
 	if d == 0 {
 		return nil
 	}
-	started := time.Now()
-	rv := &Stopwatch{handler, started, d, nil}
+	rv := &Stopwatch{handler, time.Now(), d, nil}
 	if h, ok := handler.(TimedOutHandler); ok {
-		rv.t = time.AfterFunc(d, func() { h.TimedOut(started) })
+		rv.t = time.AfterFunc(d, func() { h.TimedOut(rv.started) })
 	}
 	return rv
 }
