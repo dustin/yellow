@@ -76,6 +76,13 @@ func (d *Stopwatch) Done() {
 
 // Deadline sets up a Handler to be notified if Done isn't called
 // before the requested timeout occurs.
+//
+// If the Handler also satisfies TimedOutHandler, TimedOut will be
+// invoked asynchronously while the function continues to run.
+//
+// The ordering between TimedOut and Completed is not guaranteed.  It
+// is possible to receive a notification that your function is running
+// slowly after it's completed (late).
 func Deadline(d time.Duration, handler Handler) *Stopwatch {
 	if d == 0 {
 		return nil
