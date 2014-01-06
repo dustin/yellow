@@ -116,9 +116,49 @@ func BenchmarkNoDuration(b *testing.B) {
 	}
 }
 
+type noopHandlerT struct{}
+
+func (noopHandlerT) Completed(time.Time) {}
+
+var noopHandler = noopHandlerT{}
+
+func deadlinedDeferred(t time.Duration) {
+	defer Deadline(t, noopHandler).Done()
+}
+
+func deadlinedNotDeferred(t time.Duration) {
+	s := Deadline(t, noopHandler)
+	// Imagination
+	s.Done()
+}
+
+func BenchmarkNoDurationDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedDeferred(0)
+	}
+}
+
+func BenchmarkNoDurationNotDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedNotDeferred(0)
+	}
+}
+
 func BenchmarkMSDuration(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Deadline(time.Millisecond, nil).Done()
+	}
+}
+
+func BenchmarkMSDurationDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedDeferred(time.Millisecond)
+	}
+}
+
+func BenchmarkMSDurationNotDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedNotDeferred(time.Millisecond)
 	}
 }
 
