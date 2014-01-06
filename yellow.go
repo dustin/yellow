@@ -94,9 +94,15 @@ func Deadline(d time.Duration, handler Handler) *Stopwatch {
 	return rv
 }
 
-// DeadlineLog is a convenience invocation of Deadline that just logs events.
+// DeadlineLog is a convenience invocation of Deadline that just logs completion events.
 func DeadlineLog(d time.Duration, format string, args ...interface{}) *Stopwatch {
 	return Deadline(d, logHandler{format, args})
+}
+
+// DeadlineLogWarn is a convenience invocation of Deadline that logs
+// completion events as well as "taking too long" events.
+func DeadlineLogWarn(d time.Duration, format string, args ...interface{}) *Stopwatch {
+	return Deadline(d, logWarningHandler{logHandler{format, args}})
 }
 
 // LogHandler is a handler that logs handled events.
@@ -107,8 +113,12 @@ type logHandler struct {
 	args []interface{}
 }
 
+type logWarningHandler struct {
+	logHandler
+}
+
 // TimedOut satisfies Handler.Timeout
-func (l logHandler) TimedOut(started time.Time) {
+func (l logWarningHandler) TimedOut(started time.Time) {
 	log.Printf("Taking too long: "+l.format+" "+time.Since(started).String(), l.args...)
 }
 

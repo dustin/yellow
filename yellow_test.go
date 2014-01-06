@@ -40,6 +40,14 @@ func TestNoDurationLog(t *testing.T) {
 	s.Done() // noop
 }
 
+func TestNoDurationLogWarn(t *testing.T) {
+	s := DeadlineLogWarn(0, "nope")
+	if s != nil {
+		t.Fatalf("Expected nil stopwith 0 duration: %v", s)
+	}
+	s.Done() // noop
+}
+
 func assertTimedOut(t *testing.T, n interface{}) {
 	var ch chan bool
 	switch h := n.(type) {
@@ -68,11 +76,18 @@ func TestNoTimeoutWarning(t *testing.T) {
 	defer Deadline(time.Minute, &failHandler{t}).Done()
 }
 
-func TestLoggerWarning(t *testing.T) {
+var (
+	_ = Handler(HandleFunc(func(time.Time) {}))
+	_ = Handler(logHandler{})
+	_ = Handler(logWarningHandler{})
+	_ = TimedOutHandler(logWarningHandler{})
+)
+
+func TestLogger(t *testing.T) {
 	buf := &bytes.Buffer{}
 	log.SetOutput(buf)
 	defer log.SetOutput(os.Stderr)
-	lh := logHandler{"got %q", []interface{}{"x"}}
+	lh := logWarningHandler{logHandler{"got %q", []interface{}{"x"}}}
 	lh.TimedOut(time.Now())
 	lh.Completed(time.Now())
 	// Should probably actually inspect this stuff.
@@ -159,6 +174,74 @@ func BenchmarkMSDurationDeferred(b *testing.B) {
 func BenchmarkMSDurationNotDeferred(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		deadlinedNotDeferred(time.Millisecond)
+	}
+}
+
+func deadlinedLogDeferred(t time.Duration) {
+	defer DeadlineLog(t, "").Done()
+}
+
+func deadlinedLogNotDeferred(t time.Duration) {
+	s := DeadlineLog(t, "")
+	// Imagination
+	s.Done()
+}
+
+func deadlinedLogWarnDeferred(t time.Duration) {
+	defer DeadlineLogWarn(t, "").Done()
+}
+
+func deadlinedLogWarnNotDeferred(t time.Duration) {
+	s := DeadlineLogWarn(t, "")
+	// Imagination
+	s.Done()
+}
+
+func BenchmarkMSLogDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedLogDeferred(time.Millisecond)
+	}
+}
+
+func BenchmarkMSLogNotDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedLogNotDeferred(time.Millisecond)
+	}
+}
+
+func Benchmark0LogDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedLogDeferred(0)
+	}
+}
+
+func Benchmark0LogNotDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedLogNotDeferred(0)
+	}
+}
+
+func BenchmarkMSLogWarnDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedLogWarnDeferred(time.Millisecond)
+	}
+}
+
+func BenchmarkMSLogWarnNotDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedLogWarnNotDeferred(time.Millisecond)
+	}
+}
+
+func Benchmark0LogWarnDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedLogWarnDeferred(0)
+	}
+}
+
+func Benchmark0LogWarnNotDeferred(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		deadlinedLogWarnNotDeferred(0)
 	}
 }
 
