@@ -1,5 +1,5 @@
-// Package yellow helps you report on abnormally slow functions in
-// production applications.
+// Package yellow helps you report on or react to abnormally slow
+// functions in production applications.
 //
 // Example:
 //
@@ -15,6 +15,19 @@
 //
 // This is useful, for example, to deliver warnings about functions
 // that are running so slowly as to be completely unresponsive.
+//
+// You can also use this facility to cancel a long running task.  For
+// example, if you have a client that has a GiveUp() method you want
+// to invoke if SomethingQuick doesn't complete in one second, you can
+// do the following:
+//
+//   func ShouldBeFast() {
+//       client := somethingClient()
+//       defer yellow.Deadline(time.Second, yellow.HandleFunc(func(t) {
+//           client.GiveUp()
+//       })).Done()
+//       client.SomethingQuick()
+//   }
 package yellow
 
 import (
